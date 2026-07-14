@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - main
-      - 'agent/**'
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: windows-build-${{ github.ref }}
@@ -19,6 +18,8 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 25
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Check out source
@@ -76,13 +77,32 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub release from main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  publish-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: MiniDayZ-PC-v${{ needs.build-windows.outputs.version }}-Windows-x64
+          path: release
+
+      - name: Publish GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v${{ steps.version.outputs.version }}"
+          $tag = "v${{ needs.build-windows.outputs.version }}"
           git fetch --tags --force
           $existingTag = git tag --list $tag
           if ($existingTag) {
