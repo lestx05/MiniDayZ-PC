@@ -155,13 +155,32 @@ function createMainWindow() {
 
     window.webContents.once('did-finish-load', async () => {
       try {
-        const result = await window.webContents.executeJavaScript(`({
-          hasCanvas: Boolean(document.getElementById('c2canvas')),
-          hasRuntime: typeof window.cr_createRuntime === 'function',
-          title: document.title
-        })`);
+        const result = await window.webContents.executeJavaScript(`(async () => {
+          const deadline = Date.now() + 15_000;
+          let canvas = document.getElementById('c2canvas');
+          while (!canvas?.c2runtime && Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            canvas = document.getElementById('c2canvas');
+          }
 
-        if (!result.hasCanvas || !result.hasRuntime || result.title !== 'Mini DAYZ') {
+          const assetResponse = await fetch('config.xml', { cache: 'no-store' });
+          const assetText = await assetResponse.text();
+          return {
+            assetLoaded: assetResponse.ok && assetText.includes('com.bistudio.minidayz.plus'),
+            hasCanvas: Boolean(canvas),
+            hasRuntime: typeof window.cr_createRuntime === 'function',
+            hasRuntimeInstance: Boolean(canvas?.c2runtime),
+            title: document.title
+          };
+        })()`);
+
+        if (
+          !result.assetLoaded
+          || !result.hasCanvas
+          || !result.hasRuntime
+          || !result.hasRuntimeInstance
+          || result.title !== 'Mini DAYZ'
+        ) {
           throw new Error(`Unexpected game document: ${JSON.stringify(result)}`);
         }
 
