@@ -1,26 +1,36 @@
 {
-  "name": "minidayz-plus-desktop",
-  "version": "1.2.0",
+  "name": "minidayz-pc",
+  "version": "0.1.0",
   "private": true,
-  "description": "Desktop Windows build of MiniDayZ Plus.",
+  "description": "Reproducible Windows desktop port of MiniDayZ Plus 1.2.",
   "main": "desktop/main.js",
-  "author": "Bohemia Interactive a.s., Altero",
+  "author": "Desktop port: lestx05; game: Bohemia Interactive a.s. and Altero",
   "license": "UNLICENSED",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "start": "electron .",
-    "build:win": "electron-builder --win portable --x64"
+    "sync:game": "node scripts/sync-game-assets.mjs",
+    "start": "pnpm run sync:game && electron .",
+    "start:windowed": "pnpm run sync:game && electron . --windowed",
+    "smoke": "pnpm run sync:game && electron . --smoke-test",
+    "test": "node --test test/*.test.js",
+    "verify": "node scripts/verify-project.mjs && pnpm test",
+    "build:win": "pnpm run sync:game && pnpm run verify && electron-builder --win portable --x64"
   },
   "build": {
-    "appId": "com.local.minidayz.plus",
-    "productName": "MiniDayZ Plus",
+    "appId": "com.lestx.minidayz.pc",
+    "productName": "MiniDayZ PC",
     "asar": true,
+    "compression": "maximum",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
     "files": [
       "desktop/**/*",
       "docs/**/*",
-      "package.json"
+      "package.json",
+      "README.md",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "win": {
       "icon": "docs/icon-256.png",
@@ -34,12 +44,13 @@
       ]
     },
     "portable": {
-      "artifactName": "MiniDayZ-Plus-${version}-${arch}.${ext}"
+      "artifactName": "MiniDayZ-PC-${version}-${arch}.${ext}"
     }
   },
   "devDependencies": {
     "electron": "^43.1.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "extract-zip": "2.0.1"
   },
   "pnpm": {
     "ignoredBuiltDependencies": [

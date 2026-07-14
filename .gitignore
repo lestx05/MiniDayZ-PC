@@ -1,0 +1,12 @@
+node_modules/
+release/
+dist/
+.cache/
+
+# Reconstructed reproducibly from the pinned MiniDayZ Plus upstream commit.
+# Keep game changes as explicit patches instead of silently vendoring generated files.
+docs/
+
+*.log
+.DS_Store
+Thumbs.db

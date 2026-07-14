@@ -1,0 +1,124 @@
+name: Build Windows executable
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore pinned game assets
+        run: pnpm run sync:game
+
+      - name: Verify project
+        run: pnpm run verify
+
+      - name: Smoke-test game startup
+        run: pnpm run smoke
+
+      - name: Build portable Windows executable
+        run: pnpm exec electron-builder --win portable --x64
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Create SHA-256 checksum
+        shell: pwsh
+        run: |
+          $entry = Get-ChildItem release\*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $entry.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($entry.Name)" | Set-Content release\SHA256SUMS.txt -Encoding ascii
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniDayZ-PC-v${{ steps.version.outputs.version }}-Windows-x64
+          path: |
+            release/*.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: MiniDayZ-PC-v${{ needs.build-windows.outputs.version }}-Windows-x64
+          path: release
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ needs.build-windows.outputs.version }}"
+          git fetch --tags --force
+          $existingTag = git tag --list $tag
+          if ($existingTag) {
+            $tagCommit = git rev-list -n 1 $tag
+            if ($tagCommit -ne $env:GITHUB_SHA) {
+              throw "$tag already points to $tagCommit. Bump package.json before publishing a new build."
+            }
+          } else {
+            git tag $tag $env:GITHUB_SHA
+            git push origin $tag
+          }
+
+          $assets = Get-ChildItem release\*.exe, release\SHA256SUMS.txt | ForEach-Object { $_.FullName }
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @assets --clobber
+          } else {
+            gh release create $tag @assets --verify-tag --generate-notes --title "MiniDayZ PC $tag"
+          }
