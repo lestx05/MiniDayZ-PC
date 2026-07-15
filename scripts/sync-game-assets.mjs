@@ -17,6 +17,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import extract from 'extract-zip';
+import { applyDesktopGamePatches } from './patch-game-assets.mjs';
 
 const UPSTREAM_REPOSITORY = 'NextDev65/MiniDayZ';
 const UPSTREAM_COMMIT = '40ac9cf58af806e2d7c1c0638f6c3214042239b7';
@@ -115,6 +116,8 @@ async function downloadArchive() {
 async function syncGame() {
   if (!force && await hasCompleteGame(gameDirectory)) {
     console.log('MiniDayZ Plus game assets are already present.');
+    const patch = await applyDesktopGamePatches(gameDirectory);
+    console.log(`Applied MiniDayZ PC controls ${patch.version} (${patch.bindingCount} bindings).`);
     return;
   }
 
@@ -160,6 +163,8 @@ async function syncGame() {
     await readFile(path.join(gameDirectory, '.minidayz-source.json'), 'utf8'),
   );
   console.log(`Synced MiniDayZ Plus from ${sourceRecord.repository}@${sourceRecord.commit.slice(0, 8)}.`);
+  const patch = await applyDesktopGamePatches(gameDirectory);
+  console.log(`Applied MiniDayZ PC controls ${patch.version} (${patch.bindingCount} bindings).`);
 }
 
 await syncGame();

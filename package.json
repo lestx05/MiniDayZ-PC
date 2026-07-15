@@ -1,6 +1,6 @@
 {
   "name": "minidayz-pc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Reproducible Windows desktop port of MiniDayZ Plus 1.2.",
   "main": "desktop/main.js",
@@ -9,6 +9,7 @@
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "sync:game": "node scripts/sync-game-assets.mjs",
+    "patch:game": "node scripts/patch-game-assets.mjs",
     "start": "pnpm run sync:game && electron .",
     "start:windowed": "pnpm run sync:game && electron . --windowed",
     "smoke": "pnpm run sync:game && electron . --smoke-test",
@@ -21,6 +22,8 @@
     "productName": "MiniDayZ PC",
     "asar": true,
     "compression": "maximum",
+    "afterPack": "./scripts/after-pack.cjs",
+    "afterSign": "./scripts/after-pack.cjs",
     "npmRebuild": false,
     "directories": {
       "output": "release"

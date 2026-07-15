@@ -14,6 +14,9 @@ const {
   GAME_SCHEME,
   createAssetResponse,
 } = require('./game-protocol');
+const { version: DESKTOP_VERSION } = require('../package.json');
+
+const DESKTOP_BINDING_COUNT = 17;
 
 const GAME_URL = `${GAME_SCHEME}://${GAME_HOST}/index.html`;
 const GAME_ROOT = path.join(__dirname, '..', 'docs');
@@ -25,7 +28,6 @@ protocol.registerSchemesAsPrivileged([
   {
     scheme: GAME_SCHEME,
     privileges: {
-      allowServiceWorkers: true,
       bypassCSP: false,
       corsEnabled: true,
       secure: true,
@@ -53,7 +55,7 @@ function finishSmokeTest(error) {
     console.error(`[smoke-test] ${error.stack || error}`);
     app.exit(1);
   } else {
-    console.log('[smoke-test] Construct 2 canvas and runtime loaded successfully.');
+    console.log('[smoke-test] Construct 2 runtime and MiniDayZ PC controls loaded successfully.');
     app.exit(0);
   }
 }
@@ -165,8 +167,14 @@ function createMainWindow() {
 
           const assetResponse = await fetch('config.xml', { cache: 'no-store' });
           const assetText = await assetResponse.text();
+          const controlsResponse = await fetch('.minidayz-desktop-patch.json', { cache: 'no-store' });
+          const controlsPatch = controlsResponse.ok ? await controlsResponse.json() : null;
           return {
             assetLoaded: assetResponse.ok && assetText.includes('com.bistudio.minidayz.plus'),
+            controlsBindingCount: window.__MINIDAYZ_PC_CONTROLS__?.bindings,
+            controlsInstalled: window.__MINIDAYZ_PC_CONTROLS__?.installed === true,
+            controlsVersion: window.__MINIDAYZ_PC_CONTROLS__?.version,
+            controlsPatch,
             hasCanvas: Boolean(canvas),
             hasRuntime: typeof window.cr_createRuntime === 'function',
             hasRuntimeInstance: Boolean(canvas?.c2runtime),
@@ -176,6 +184,12 @@ function createMainWindow() {
 
         if (
           !result.assetLoaded
+          || result.controlsBindingCount !== DESKTOP_BINDING_COUNT
+          || !result.controlsInstalled
+          || result.controlsVersion !== DESKTOP_VERSION
+          || result.controlsPatch?.version !== DESKTOP_VERSION
+          || result.controlsPatch?.bindingCount !== DESKTOP_BINDING_COUNT
+          || result.controlsPatch?.movement !== 'WASD'
           || !result.hasCanvas
           || !result.hasRuntime
           || !result.hasRuntimeInstance
@@ -206,7 +220,20 @@ function createMainWindow() {
     }
   });
 
-  void window.loadURL(GAME_URL);
+  // The packaged game is already fully local. Clear legacy Construct 2 offline
+  // workers/caches so an update can never shadow a newer embedded data.js.
+  void window.webContents.session.clearStorageData({
+    storages: ['serviceworkers', 'cachestorage'],
+  }).then(() => window.loadURL(GAME_URL)).catch((error) => {
+    if (isSmokeTest) {
+      finishSmokeTest(error);
+    } else {
+      dialog.showErrorBox('MiniDayZ PC could not prepare local game files', error.stack || String(error));
+    }
+    if (!window.isDestroyed()) {
+      window.close();
+    }
+  });
   return window;
 }
 

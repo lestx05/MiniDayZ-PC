@@ -6,7 +6,7 @@ A reproducible Windows desktop port of **MiniDayZ Plus 1.2**. The game runs loca
 
 ## Current release
 
-- Desktop port: **v0.1.0**
+- Desktop port: **v0.2.0**
 - Game build: **MiniDayZ Plus 1.2**
 - Platform: Windows 10/11 x64
 - Package: portable `.exe` (no installer required)
@@ -15,10 +15,26 @@ Download the newest executable from [GitHub Releases](https://github.com/lestx05
 
 ## Controls and desktop behavior
 
-- `F11`: toggle full screen
-- `Alt+F4`: close the game
-- Launch with `--windowed`: start in a resizable 4:3 window
-- Only one instance runs at a time
+| Input | Action |
+| --- | --- |
+| `WASD` / arrow keys | Move or drive |
+| `Space` | Attack, fire, or fire from a vehicle |
+| `F` | Alternate attack |
+| `E` | Interact, pick up, or leave a vehicle |
+| `R` | Reload |
+| `Q` / middle mouse button | Cycle weapon |
+| `1` / `2` / `3` | Select melee / primary firearm / pistol |
+| `Tab` | Open or close inventory |
+| `X` / right mouse button | Toggle aim |
+| `P` | Open perks and status |
+| `G` | Use the equipped flare |
+| `T` | Talk |
+| `Esc` | Pause and options |
+| `F1` | Show or hide the in-game controls card |
+| `F11` | Toggle full screen |
+| `Alt+F4` | Close the game |
+
+The left mouse button keeps the original touch behavior for menus, inventory, and on-screen controls. Launch with `--windowed` to start in a resizable 4:3 window; only one instance runs at a time.
 
 Game saves use a stable private origin under Electron's `%APPDATA%\MiniDayZ PC` profile, so they persist between launches and desktop-port updates.
 
@@ -34,7 +50,7 @@ pnpm install --frozen-lockfile
 pnpm start
 ```
 
-`pnpm start` downloads the pinned upstream MiniDayZ Plus files on first use and verifies the archive's SHA-256 checksum before extracting it. Later runs reuse the verified local copy.
+`pnpm start` downloads the pinned upstream MiniDayZ Plus files on first use, verifies the archive's SHA-256 checksum, and applies the versioned desktop-control patch. Later runs reuse the verified local copy and reapply the patch idempotently.
 
 Useful commands:
 

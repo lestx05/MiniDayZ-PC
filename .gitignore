@@ -2,6 +2,7 @@ node_modules/
 release/
 dist/
 .cache/
+.home/
 
 # Reconstructed reproducibly from the pinned MiniDayZ Plus upstream commit.
 # Keep game changes as explicit patches instead of silently vendoring generated files.
